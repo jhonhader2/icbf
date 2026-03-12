@@ -1,0 +1,20 @@
+<x-app-layout>
+    <x-slot name="header"><h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ __('Nueva persona') }}</h2></x-slot>
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+            <div class="bg-white shadow-sm sm:rounded-lg p-6">
+                <form method="POST" action="{{ route('personas.store') }}">@csrf
+                    <div class="mb-4"><label for="persona_documento_identidad" class="block text-sm font-medium text-gray-700">{{ __('Documento identidad') }}</label><input id="persona_documento_identidad" name="documento_identidad" value="{{ old('documento_identidad') }}" required class="mt-1 block w-full rounded-md border-gray-300">@error('documento_identidad')<p class="text-red-500 text-sm">{{ $message }}</p>@enderror</div>
+                    <div class="mb-4"><label for="persona_nombre" class="block text-sm font-medium text-gray-700">{{ __('Nombre') }}</label><input id="persona_nombre" name="nombre" value="{{ old('nombre') }}" class="mt-1 block w-full rounded-md border-gray-300">@error('nombre')<p class="text-red-500 text-sm">{{ $message }}</p>@enderror</div>
+                    <div class="mb-4"><label for="persona_department_id" class="block text-sm font-medium text-gray-700">{{ __('Departamento') }}</label><select id="persona_department_id" name="department_id" class="mt-1 block w-full rounded-md border-gray-300"><option value="">--</option>@foreach($departments as $d)<option value="{{ $d->id }}" @selected(old('department_id') == $d->id)>{{ $d->nombre }}</option>@endforeach</select></div>
+                    <div class="mb-4"><label for="persona_account_status" class="block text-sm font-medium text-gray-700">{{ __('Account Status') }}</label><select id="persona_account_status" name="account_status" class="mt-1 block w-full rounded-md border-gray-300"><option value="">--</option><option value="0" @selected(old('account_status') === '0')>{{ __('Inactivo') }}</option><option value="1" @selected(old('account_status') === '1')>{{ __('Activo') }}</option></select></div>
+                    <div class="mb-4"><label for="persona_office_id" class="block text-sm font-medium text-gray-700">{{ __('Oficina') }}</label><select id="persona_office_id" name="office_id" class="mt-1 block w-full rounded-md border-gray-300"><option value="">--</option>@foreach($offices as $o)<option value="{{ $o->id }}" @selected(old('office_id') == $o->id)>{{ $o->nombre }}</option>@endforeach</select></div>
+                    <div class="mb-4"><label for="persona_title_id" class="block text-sm font-medium text-gray-700">{{ __('Cargo') }}</label><select id="persona_title_id" name="title_id" class="mt-1 block w-full rounded-md border-gray-300"><option value="">--</option>@foreach($titles as $t)<option value="{{ $t->id }}" @selected(old('title_id') == $t->id)>{{ $t->nombre }}</option>@endforeach</select></div>
+                    <div class="mb-4"><label for="persona_email_address" class="block text-sm font-medium text-gray-700">{{ __('Email') }}</label><input id="persona_email_address" name="email_address" type="email" value="{{ old('email_address') }}" class="mt-1 block w-full rounded-md border-gray-300">@error('email_address')<p class="text-red-500 text-sm">{{ $message }}</p>@enderror</div>
+                    <button type="submit" class="px-4 py-2 bg-gray-800 text-white rounded-md">{{ __('Guardar') }}</button>
+                    <a href="{{ route('personas.index') }}" class="ml-2 text-gray-600">{{ __('Cancelar') }}</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</x-app-layout>
