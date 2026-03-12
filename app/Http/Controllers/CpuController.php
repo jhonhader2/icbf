@@ -12,8 +12,10 @@ class CpuController extends Controller
 {
     public function index(Request $request): View
     {
+        $rid = $this->userRegionalId();
         $cpus = Cpu::query()
             ->with(['persona', 'activoCrv'])
+            ->when($rid !== null, fn ($q) => $q->whereHas('activoCrv', fn ($q2) => $q2->where('regional_id', $rid)))
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = '%' . $request->q . '%';
                 $q->where('placa', 'like', $term)
@@ -28,7 +30,11 @@ class CpuController extends Controller
 
     public function create(): View
     {
-        $personas = Persona::orderBy('nombre')->get();
+        $rid = $this->userRegionalId();
+        $personas = Persona::query()
+            ->orderBy('nombre')
+            ->when($rid !== null, fn ($q) => $q->where('regional_id', $rid))
+            ->get();
         return view('activos.cpus.create', compact('personas'));
     }
 
@@ -47,18 +53,33 @@ class CpuController extends Controller
 
     public function show(Cpu $cpu): View
     {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) ($cpu->activoCrv?->regional_id) !== $rid) {
+            abort(404);
+        }
         $cpu->load(['persona', 'activoCrv.producto', 'activoCrv.regional', 'monitor', 'teclado', 'mouse']);
         return view('activos.cpus.show', compact('cpu'));
     }
 
     public function edit(Cpu $cpu): View
     {
-        $personas = Persona::orderBy('nombre')->get();
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) ($cpu->activoCrv?->regional_id) !== $rid) {
+            abort(404);
+        }
+        $personas = Persona::query()
+            ->orderBy('nombre')
+            ->when($rid !== null, fn ($q) => $q->where('regional_id', $rid))
+            ->get();
         return view('activos.cpus.edit', compact('cpu', 'personas'));
     }
 
     public function update(Request $request, Cpu $cpu): RedirectResponse
     {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) ($cpu->activoCrv?->regional_id) !== $rid) {
+            abort(404);
+        }
         $validated = $request->validate([
             'nombre_maquina' => 'nullable|string|max:255',
             'placa' => 'nullable|string|max:100',
@@ -72,6 +93,10 @@ class CpuController extends Controller
 
     public function destroy(Cpu $cpu): RedirectResponse
     {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) ($cpu->activoCrv?->regional_id) !== $rid) {
+            abort(404);
+        }
         $cpu->delete();
         return redirect()->route('cpus.index')->with('success', __('CPU eliminado.'));
     }

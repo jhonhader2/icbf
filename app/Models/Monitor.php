@@ -9,10 +9,15 @@ class Monitor extends Model
 {
     protected $table = 'monitores';
 
-    protected $fillable = ['marca', 'modelo', 'serial', 'placa', 'estado', 'cpu_id'];
+    protected $fillable = ['marca', 'modelo', 'serial', 'placa', 'estado', 'cpu_id', 'activo_crv_id'];
 
     public function cpu(): BelongsTo
     {
         return $this->belongsTo(Cpu::class, 'cpu_id');
+    }
+
+    public function activoCrv(): BelongsTo
+    {
+        return $this->belongsTo(ActivoCrv::class, 'activo_crv_id');
     }
 }

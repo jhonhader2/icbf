@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\ActivoCrv;
 use App\Models\Bodega;
 use App\Models\Cpu;
+use App\Models\Monitor;
 use App\Models\Persona;
 use App\Models\Producto;
 use App\Models\Regional;
@@ -19,11 +20,15 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
  * Jerarquía: código en D (3), nombre en F (5): REGIONAL / BODEGA / Tercero (persona). Filas "Subtotal" se ignoran.
  * Fila de activo: Placa en D (3), Producto en H (7). Primer producto suele estar en fila Excel 19 (índice 5).
  * Si el código de producto es 203002000005 (CPU), se registra también en la tabla cpus.
+ * Si el código es 203002000004 (Monitor), se registra también en la tabla monitores.
  */
 class CrvReporteImport implements ToCollection, WithStartRow
 {
     /** Código de producto que identifica CPU en el reporte CRV. */
     public const CODIGO_PRODUCTO_CPU = '203002000005';
+
+    /** Código de producto que identifica Monitor en el reporte CRV. */
+    public const CODIGO_PRODUCTO_MONITOR = '203002000004';
 
     private CrvReporteRowHelper $rowHelper;
 
@@ -292,6 +297,9 @@ class CrvReporteImport implements ToCollection, WithStartRow
         if ($productoVal['codigo'] === self::CODIGO_PRODUCTO_CPU) {
             $this->createOrUpdateCpu($placa, $personaId, $activo->id);
         }
+        if ($productoVal['codigo'] === self::CODIGO_PRODUCTO_MONITOR) {
+            $this->createOrUpdateMonitor($row, $placa, $activo->id, $productoVal);
+        }
     }
 
     /**
@@ -305,6 +313,28 @@ class CrvReporteImport implements ToCollection, WithStartRow
             [
                 'persona_id' => $personaId,
                 'activo_crv_id' => $activoCrvId,
+            ]
+        );
+    }
+
+    /**
+     * Crea o actualiza registro en monitores cuando el activo importado es Monitor (código 203002000004).
+     * Vincula por activo_crv_id; marca, modelo y serial desde la fila (misma estructura que CPU).
+     */
+    private function createOrUpdateMonitor(array $row, string $placa, int $activoCrvId, array $productoVal): void
+    {
+        $offset = $productoVal['offset'];
+        $serie = $this->rowHelper->val($row, $offset + 9);
+        $marca = $this->rowHelper->primeraCeldaNoVacia($row, [$offset + 11, $offset + 12, $offset + 13]);
+        $modelo = $this->rowHelper->primeraCeldaNoVacia($row, [$offset + 14, $offset + 15, $offset + 16]);
+
+        Monitor::query()->updateOrCreate(
+            ['placa' => $placa],
+            [
+                'activo_crv_id' => $activoCrvId,
+                'marca' => $marca ?: null,
+                'modelo' => $modelo ?: null,
+                'serial' => $serie ?: null,
             ]
         );
     }

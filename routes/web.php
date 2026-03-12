@@ -37,6 +37,9 @@ Route::middleware('auth')->group(function () {
     Route::resource('departments', DepartmentController::class);
     Route::get('personas/import', [AllUsersImportController::class, 'show'])->name('personas.import');
     Route::post('personas/import', [AllUsersImportController::class, 'store'])->name('personas.import.store');
+    Route::post('personas/{persona}/crear-usuario', [PersonaController::class, 'crearUsuario'])->name('personas.crear-usuario');
+    Route::post('personas/crear-usuarios-masivo', [PersonaController::class, 'crearUsuariosMasivo'])->name('personas.crear-usuarios-masivo');
+    Route::post('personas/crear-usuarios-todos', [PersonaController::class, 'crearUsuariosTodos'])->name('personas.crear-usuarios-todos');
     Route::resource('personas', PersonaController::class);
     Route::resource('regionales', RegionalController::class)->parameters(['regionales' => 'regional']);
     Route::resource('bodegas', BodegaController::class);

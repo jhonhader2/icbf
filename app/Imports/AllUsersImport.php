@@ -7,6 +7,7 @@ use App\Models\Office;
 use App\Models\Persona;
 use App\Models\Regional;
 use App\Models\Title;
+use App\Models\User;
 use App\Support\StringNormalizer;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
@@ -68,10 +69,34 @@ class AllUsersImport implements ToModel, WithHeadingRow, WithValidation
             'description' => StringNormalizer::normalize((string) ($row['description'] ?? '')) ?: null,
             'sam_account_name' => StringNormalizer::normalize((string) ($row['sam_account_name'] ?? '')) ?: null,
         ];
-        return Persona::query()->updateOrCreate(
+        $persona = Persona::query()->updateOrCreate(
             ['documento_identidad' => $doc],
             $attrs
         );
+        $this->ensureUserForPersona($persona);
+
+        return $persona;
+    }
+
+    /**
+     * Crea usuario de acceso para la persona si tiene email y aún no existe un usuario con ese correo.
+     * Contraseña inicial: documento de identidad. Misma lógica que alta manual de persona.
+     */
+    private function ensureUserForPersona(Persona $persona): void
+    {
+        if (! $persona->email_address) {
+            return;
+        }
+        $email = $persona->email_address;
+        if (User::where('email', $email)->exists()) {
+            return;
+        }
+        User::create([
+            'name' => $persona->nombre ?? $persona->full_name ?? $email,
+            'email' => $email,
+            'password' => $persona->documento_identidad,
+            'regional_id' => $persona->regional_id,
+        ]);
     }
 
     public function rules(): array

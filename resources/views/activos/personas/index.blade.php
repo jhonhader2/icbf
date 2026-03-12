@@ -80,6 +80,13 @@
             @endif
 
             <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+                @if($hayPersonasSinUsuario)
+                    <form action="{{ route('personas.crear-usuarios-todos') }}" method="POST" class="px-6 py-3 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
+                        @csrf
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium">{{ __('Crear todos los usuarios que falten') }}</button>
+                        <span class="text-sm text-gray-500">{{ __('Crea un usuario de acceso para cada persona con email que aún no tenga. Contraseña inicial: documento de identidad.') }}</span>
+                    </form>
+                @endif
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -88,6 +95,7 @@
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Regional') }}</th>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Departamento') }}</th>
                             <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Estado') }}</th>
+                            <th class="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ __('Usuario') }}</th>
                             <th class="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">{{ __('Acciones') }}</th>
                         </tr>
                     </thead>
@@ -101,6 +109,9 @@
                                 <td class="px-6 py-4 text-sm">
                                     @if ($p->account_status === '1')<span class="text-green-700">{{ __('Activo') }}</span>@elseif($p->account_status === '0')<span class="text-gray-500">{{ __('Inactivo') }}</span>@else<span class="text-gray-400">—</span>@endif
                                 </td>
+                                <td class="px-6 py-4 text-sm">
+                                    @if($p->email_address && isset($emailsConUsuario[$p->email_address]))<span class="text-green-700">{{ __('Sí') }}</span>@elseif($p->email_address)<span class="text-amber-600">{{ __('Pendiente') }}</span>@else<span class="text-gray-400">—</span>@endif
+                                </td>
                                 <td class="px-6 py-4 text-right text-sm">
                                     <a href="{{ route('personas.show', $p) }}" class="text-gray-600 hover:text-gray-900">{{ __('Ver') }}</a>
                                     <a href="{{ route('personas.edit', $p) }}" class="ml-3 text-indigo-600 hover:text-indigo-800">{{ __('Editar') }}</a>
@@ -108,7 +119,7 @@
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">{{ __('No hay registros.') }}</td></tr>
+                            <tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">{{ __('No hay registros.') }}</td></tr>
                         @endforelse
                     </tbody>
                 </table>

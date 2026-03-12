@@ -11,12 +11,16 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
-        $totalPersonas = Persona::count();
-        $personasActivas = Persona::where('account_status', '1')->count();
-        $personasInactivas = Persona::where('account_status', '0')->count();
+        $rid = $this->userRegionalId();
+
+        $personasQuery = Persona::query()->when($rid !== null, fn ($q) => $q->where('personas.regional_id', $rid));
+        $totalPersonas = $personasQuery->count();
+        $personasActivas = (clone $personasQuery)->where('personas.account_status', '1')->count();
+        $personasInactivas = (clone $personasQuery)->where('personas.account_status', '0')->count();
         $personasSinEstado = $totalPersonas - $personasActivas - $personasInactivas;
 
         $personasPorDepartamento = Persona::query()
+            ->when($rid !== null, fn ($q) => $q->where('personas.regional_id', $rid))
             ->select('departments.nombre as department_name')
             ->selectRaw('count(personas.id) as total')
             ->leftJoin('departments', 'personas.department_id', '=', 'departments.id')
@@ -26,6 +30,7 @@ class DashboardController extends Controller
             ->get();
 
         $personasPorRegional = Persona::query()
+            ->when($rid !== null, fn ($q) => $q->where('personas.regional_id', $rid))
             ->select('regionales.id as regional_id', 'regionales.nombre as regional_name')
             ->selectRaw('count(personas.id) as total')
             ->leftJoin('regionales', 'personas.regional_id', '=', 'regionales.id')
@@ -33,11 +38,12 @@ class DashboardController extends Controller
             ->orderByDesc('total')
             ->get();
 
-        $totalCpus = Cpu::count();
+        $cpusQuery = Cpu::query()->when($rid !== null, fn ($q) => $q->whereHas('activoCrv', fn ($q2) => $q2->where('regional_id', $rid)));
+        $totalCpus = $cpusQuery->count();
         $limite5Anios = Carbon::now()->subYears(5)->startOfDay();
-        $cpusMasDe5Anios = Cpu::whereHas('activoCrv', fn ($q) => $q->whereNotNull('fecha_adquisicion')->where('fecha_adquisicion', '<=', $limite5Anios))->count();
-        $cpusMenosOIgual5 = Cpu::whereHas('activoCrv', fn ($q) => $q->whereNotNull('fecha_adquisicion')->where('fecha_adquisicion', '>', $limite5Anios))->count();
-        $cpusSinFecha = Cpu::query()
+        $cpusMasDe5Anios = (clone $cpusQuery)->whereHas('activoCrv', fn ($q) => $q->whereNotNull('fecha_adquisicion')->where('fecha_adquisicion', '<=', $limite5Anios))->count();
+        $cpusMenosOIgual5 = (clone $cpusQuery)->whereHas('activoCrv', fn ($q) => $q->whereNotNull('fecha_adquisicion')->where('fecha_adquisicion', '>', $limite5Anios))->count();
+        $cpusSinFecha = (clone $cpusQuery)
             ->where(fn ($q) => $q->whereDoesntHave('activoCrv')->orWhereHas('activoCrv', fn ($q2) => $q2->whereNull('fecha_adquisicion')))
             ->count();
 

@@ -33,6 +33,10 @@
                             <select id="persona_department_id" name="department_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="">--</option>@foreach($departments as $d)<option value="{{ $d->id }}" @selected(old('department_id', $persona->department_id) == $d->id)>{{ $d->nombre }}</option>@endforeach</select>
                         </div>
                         <div>
+                            <label for="persona_regional_id" class="block text-sm font-medium text-gray-700">{{ __('Regional') }}</label>
+                            <select id="persona_regional_id" name="regional_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="">--</option>@foreach($regionales as $r)<option value="{{ $r->id }}" @selected(old('regional_id', $persona->regional_id) == $r->id)>{{ $r->nombre }}</option>@endforeach</select>
+                        </div>
+                        <div>
                             <label for="persona_account_status" class="block text-sm font-medium text-gray-700">{{ __('Account Status') }}</label>
                             <select id="persona_account_status" name="account_status" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"><option value="">--</option><option value="0" @selected(old('account_status', $persona->account_status) === '0')>{{ __('Inactivo') }}</option><option value="1" @selected(old('account_status', $persona->account_status) === '1')>{{ __('Activo') }}</option></select>
                         </div>

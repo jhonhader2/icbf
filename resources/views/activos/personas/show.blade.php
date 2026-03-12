@@ -21,9 +21,13 @@
                     <div><dt class="text-sm font-medium text-gray-500">{{ __('Oficina') }}</dt><dd class="mt-0.5 text-gray-900">{{ $persona->office?->nombre ?? '—' }}</dd></div>
                     <div><dt class="text-sm font-medium text-gray-500">{{ __('Cargo') }}</dt><dd class="mt-0.5 text-gray-900">{{ $persona->title?->nombre ?? '—' }}</dd></div>
                     @if($persona->email_address)<div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">{{ __('Email') }}</dt><dd class="mt-0.5 text-gray-900">{{ $persona->email_address }}</dd></div>@endif
+                    <div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">{{ __('Usuario de acceso') }}</dt><dd class="mt-0.5 text-gray-900">@if($tieneUsuario)<span class="text-green-700">{{ __('Sí') }}</span>@elseif($puedeCrearUsuario)<form action="{{ route('personas.crear-usuario', $persona) }}" method="POST" class="inline">@csrf<button type="submit" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{{ __('Crear usuario') }}</button></form><span class="ml-2 text-gray-500 text-sm">{{ __('Contraseña inicial: documento de identidad') }}</span>@else<span class="text-gray-400">—</span> {{ __('Indique email en Editar para crear usuario.') }}@endif</dd></div>
                 </dl>
-                <div class="mt-6 flex gap-3">
+                <div class="mt-6 flex flex-wrap gap-3">
                     <a href="{{ route('personas.edit', $persona) }}" class="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700">{{ __('Editar') }}</a>
+                    @if($puedeCrearUsuario)
+                        <form action="{{ route('personas.crear-usuario', $persona) }}" method="POST" class="inline">@csrf<button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{{ __('Crear usuario de acceso') }}</button></form>
+                    @endif
                     <a href="{{ route('activos-crv.index', ['persona_id' => $persona->id]) }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">{{ __('Ver activos CRV') }}</a>
                     <a href="{{ route('personas.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">{{ __('Volver') }}</a>
                 </div>

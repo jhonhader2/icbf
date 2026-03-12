@@ -15,8 +15,10 @@ class ActivoCrvController extends Controller
 {
     public function index(Request $request): View
     {
+        $rid = $this->userRegionalId();
         $activosCrv = ActivoCrv::query()
             ->with(['persona', 'producto', 'bodega'])
+            ->when($rid !== null, fn ($q) => $q->where('regional_id', $rid))
             ->when($request->filled('persona_id'), fn ($q) => $q->where('persona_id', $request->persona_id))
             ->when($request->filled('producto_id'), fn ($q) => $q->where('producto_id', $request->producto_id))
             ->when($request->filled('q'), fn ($q) => $q->where('placa', 'like', '%' . $request->q . '%')
@@ -31,7 +33,11 @@ class ActivoCrvController extends Controller
 
     public function create(): View
     {
-        $personas = Persona::orderBy('nombre')->get();
+        $rid = $this->userRegionalId();
+        $personas = Persona::query()
+            ->orderBy('nombre')
+            ->when($rid !== null, fn ($q) => $q->where('regional_id', $rid))
+            ->get();
         $productos = Producto::orderBy('codigo')->get();
         $regionales = Regional::orderBy('nombre')->get();
         $bodegas = Bodega::orderBy('nombre')->get();
@@ -51,19 +57,34 @@ class ActivoCrvController extends Controller
             'regional_id' => 'nullable|exists:regionales,id',
             'bodega_codigo' => 'nullable|string|max:50|exists:bodegas,codigo',
         ]);
+        $rid = $this->userRegionalId();
+        if ($rid !== null) {
+            $validated['regional_id'] = $rid;
+        }
         ActivoCrv::create($validated);
         return redirect()->route('activos-crv.index')->with('success', __('Activo CRV creado.'));
     }
 
     public function show(ActivoCrv $activoCrv): View
     {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) $activoCrv->regional_id !== $rid) {
+            abort(404);
+        }
         $activoCrv->load(['persona', 'producto', 'regional', 'bodega', 'cpu.monitor', 'cpu.teclado', 'cpu.mouse']);
         return view('activos.activos-crv.show', compact('activoCrv'));
     }
 
     public function edit(ActivoCrv $activoCrv): View
     {
-        $personas = Persona::orderBy('nombre')->get();
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) $activoCrv->regional_id !== $rid) {
+            abort(404);
+        }
+        $personas = Persona::query()
+            ->orderBy('nombre')
+            ->when($rid !== null, fn ($q) => $q->where('regional_id', $rid))
+            ->get();
         $productos = Producto::orderBy('codigo')->get();
         $regionales = Regional::orderBy('nombre')->get();
         $bodegas = Bodega::orderBy('nombre')->get();
@@ -72,6 +93,10 @@ class ActivoCrvController extends Controller
 
     public function update(Request $request, ActivoCrv $activoCrv): RedirectResponse
     {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) $activoCrv->regional_id !== $rid) {
+            abort(404);
+        }
         $validated = $request->validate([
             'placa' => 'nullable|string|max:100',
             'producto_id' => 'nullable|exists:productos,id',
@@ -83,12 +108,19 @@ class ActivoCrvController extends Controller
             'regional_id' => 'nullable|exists:regionales,id',
             'bodega_codigo' => 'nullable|string|max:50|exists:bodegas,codigo',
         ]);
+        if ($rid !== null) {
+            $validated['regional_id'] = $rid;
+        }
         $activoCrv->update($validated);
         return redirect()->route('activos-crv.index')->with('success', __('Activo CRV actualizado.'));
     }
 
     public function destroy(ActivoCrv $activoCrv): RedirectResponse
     {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) $activoCrv->regional_id !== $rid) {
+            abort(404);
+        }
         $activoCrv->delete();
         return redirect()->route('activos-crv.index')->with('success', __('Activo CRV eliminado.'));
     }

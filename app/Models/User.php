@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -23,7 +23,16 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'regional_id',
     ];
+
+    /**
+     * Usuarios con regional_id null pueden ver todas las regionales (ej. administradores).
+     */
+    public function regional(): BelongsTo
+    {
+        return $this->belongsTo(Regional::class, 'regional_id');
+    }
 
     /**
      * The attributes that should be hidden for serialization.
