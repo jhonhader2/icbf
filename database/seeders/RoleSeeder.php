@@ -2,20 +2,29 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        $manageUsers = Permission::firstOrCreate(['name' => 'manage users', 'guard_name' => 'web']);
+        $this->call(PermissionSeeder::class);
 
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->givePermissionTo($manageUsers);
+        $admin->syncPermissions(PermissionSeeder::todosLosNombres());
 
-        Role::firstOrCreate(['name' => 'operador', 'guard_name' => 'web']);
-        // Operador: CRUD activos e import/export; sin gestión de usuarios (no givePermissionTo manage users)
+        $usuario = Role::firstOrCreate(['name' => 'usuario', 'guard_name' => 'web']);
+        $usuario->syncPermissions(PermissionSeeder::permisosUsuario());
+
+        $operador = Role::firstOrCreate(['name' => 'operador', 'guard_name' => 'web']);
+        $operador->syncPermissions(PermissionSeeder::permisosOperador());
+
+        User::all()->each(function (User $user) {
+            if ($user->roles()->count() === 0) {
+                $user->assignRole('usuario');
+            }
+        });
     }
 }

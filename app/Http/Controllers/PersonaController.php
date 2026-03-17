@@ -10,14 +10,38 @@ use App\Models\Regional;
 use App\Models\Title;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Illuminate\Http\RedirectResponse;
 
 class PersonaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:personas.view')->only(['index', 'show']);
+        $this->middleware('permission:personas.create')->only(['create', 'store']);
+        $this->middleware('permission:personas.update')->only(['edit', 'update']);
+        $this->middleware('permission:personas.delete')->only(['destroy']);
+        $this->middleware('permission:personas.crear-usuario')->only(['crearUsuario', 'crearUsuariosMasivo', 'crearUsuariosTodos']);
+        $this->middleware('permission:roles.update')->only(['updateRoles']);
+    }
+
     public function index(Request $request): View
     {
+        $user = $request->user();
+        $isAdmin = $user && $user->can('personas.update'); // Quien puede editar puede ver listado completo; si no, solo su ficha
+
+        if (! $isAdmin) {
+            $persona = $this->currentPersona();
+            if (! $persona) {
+                abort(404);
+            }
+
+            // Usuario no admin: solo puede ver su propia ficha.
+            return $this->show($persona);
+        }
+
         $userRegionalId = $this->userRegionalId();
         $regionales = Regional::orderBy('nombre')->get();
         $regionalId = $userRegionalId ?? ($request->filled('regional_id') ? (int) $request->regional_id : null);
@@ -35,6 +59,8 @@ class PersonaController extends Controller
                 ->where('personas.regional_id', $regionalId)
                 ->when($departmentId > 0, fn ($q) => $q->where('personas.department_id', $departmentId))
                 ->select('departments.nombre as department_name')
+                ->selectRaw("SUM(CASE WHEN personas.account_status = '1' THEN 1 ELSE 0 END) as total_activos")
+                ->selectRaw("SUM(CASE WHEN personas.account_status = '0' THEN 1 ELSE 0 END) as total_inactivos")
                 ->selectRaw('count(personas.id) as total')
                 ->leftJoin('departments', 'personas.department_id', '=', 'departments.id')
                 ->groupBy('personas.department_id', 'departments.nombre')
@@ -45,7 +71,17 @@ class PersonaController extends Controller
         $search = $request->string('q')->trim();
         $accountStatus = $request->account_status;
         $personas = Persona::query()
-            ->with(['department', 'office', 'title', 'regional'])
+            ->select([
+                'personas.id',
+                'personas.documento_identidad',
+                'personas.nombre',
+                'personas.full_name',
+                'personas.department_id',
+                'personas.account_status',
+                'personas.email_address',
+                'personas.regional_id',
+            ])
+            ->with(['department:id,nombre'])
             ->when($userRegionalId !== null, fn ($q) => $q->where('personas.regional_id', $userRegionalId))
             ->when($search->isNotEmpty(), fn ($q) => $q->where(function ($q) use ($search) {
                 $q->where('personas.documento_identidad', 'like', '%' . $search . '%')
@@ -59,13 +95,18 @@ class PersonaController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $emailsConUsuario = User::whereIn('email', $personas->pluck('email_address')->filter()->unique()->values()->toArray())->pluck('email')->flip();
+        $emailsConUsuario = User::whereIn(
+            'email',
+            $personas->pluck('email_address')->filter()->unique()->values()->toArray()
+        )->pluck('email')->flip();
 
+        // Consulta optimizada: evita cargar todos los emails de users en memoria.
         $hayPersonasSinUsuario = Persona::query()
-            ->when($userRegionalId !== null, fn ($q) => $q->where('regional_id', $userRegionalId))
-            ->whereNotNull('email_address')
-            ->where('email_address', '!=', '')
-            ->whereNotIn('email_address', User::pluck('email'))
+            ->when($userRegionalId !== null, fn ($q) => $q->where('personas.regional_id', $userRegionalId))
+            ->whereNotNull('personas.email_address')
+            ->where('personas.email_address', '!=', '')
+            ->leftJoin('users', 'users.email', '=', 'personas.email_address')
+            ->whereNull('users.id')
             ->exists();
 
         return view('activos.personas.index', compact('personas', 'departments', 'regionales', 'personasPorDepartamentoEnRegional', 'regionalSeleccionada', 'emailsConUsuario', 'hayPersonasSinUsuario'));
@@ -101,12 +142,13 @@ class PersonaController extends Controller
 
         DB::transaction(function () use ($validated) {
             Persona::create($validated);
-            User::create([
+            $user = User::create([
                 'name' => $validated['nombre'] ?? $validated['full_name'] ?? $validated['email_address'],
                 'email' => $validated['email_address'],
                 'password' => $validated['documento_identidad'],
                 'regional_id' => $validated['regional_id'] ?? null,
             ]);
+            $user->assignRole('usuario');
         });
 
         return redirect()->route('personas.index')->with('success', __('Persona y usuario creados.'));
@@ -114,8 +156,16 @@ class PersonaController extends Controller
 
     public function show(Persona $persona): View
     {
+        $user = request()->user();
+        $isAdmin = $user && $user->can('personas.update');
         $rid = $this->userRegionalId();
-        if ($rid !== null && (int) $persona->regional_id !== $rid) {
+
+        if (! $isAdmin) {
+            $self = $this->currentPersona();
+            if (! $self || $self->id !== $persona->id) {
+                abort(404);
+            }
+        } elseif ($rid !== null && (int) $persona->regional_id !== $rid) {
             abort(404);
         }
         $persona->load(['department', 'office', 'title', 'cpus', 'activosCrv' => ['producto']]);
@@ -125,7 +175,9 @@ class PersonaController extends Controller
         )->values());
         $tieneUsuario = $persona->email_address && User::where('email', $persona->email_address)->exists();
         $puedeCrearUsuario = $persona->email_address && ! $tieneUsuario;
-        return view('activos.personas.show', compact('persona', 'tieneUsuario', 'puedeCrearUsuario'));
+        $userLink = $persona->email_address ? User::where('email', $persona->email_address)->first() : null;
+        $roles = request()->user()?->can('roles.update') ? Role::orderBy('name')->get() : collect();
+        return view('activos.personas.show', compact('persona', 'tieneUsuario', 'puedeCrearUsuario', 'userLink', 'roles'));
     }
 
     public function edit(Persona $persona): View
@@ -165,6 +217,28 @@ class PersonaController extends Controller
         return redirect()->route('personas.index')->with('success', __('Persona actualizada.'));
     }
 
+    /**
+     * Asigna roles al usuario vinculado a la persona (por email).
+     * Requiere permission:roles.update.
+     */
+    public function updateRoles(Request $request, Persona $persona): RedirectResponse
+    {
+        $rid = $this->userRegionalId();
+        if ($rid !== null && (int) $persona->regional_id !== $rid) {
+            abort(404);
+        }
+        $userLink = $persona->email_address ? User::where('email', $persona->email_address)->first() : null;
+        if (! $userLink) {
+            return redirect()->route('personas.show', $persona)->with('error', __('Esta persona no tiene usuario de acceso; cree uno primero.'));
+        }
+        $validated = $request->validate([
+            'roles' => 'nullable|array',
+            'roles.*' => 'string|exists:roles,name',
+        ]);
+        $userLink->syncRoles($validated['roles'] ?? []);
+        return redirect()->route('personas.show', $persona)->with('success', __('Roles actualizados.'));
+    }
+
     public function destroy(Persona $persona): RedirectResponse
     {
         $rid = $this->userRegionalId();
@@ -191,12 +265,13 @@ class PersonaController extends Controller
         if (User::where('email', $persona->email_address)->exists()) {
             return redirect()->back()->with('error', __('Ya existe un usuario con el correo de esta persona.'));
         }
-        User::create([
+        $user = User::create([
             'name' => $persona->nombre ?? $persona->full_name ?? $persona->email_address,
             'email' => $persona->email_address,
             'password' => $persona->documento_identidad,
             'regional_id' => $persona->regional_id,
         ]);
+        $user->assignRole('usuario');
         return redirect()->back()->with('success', __('Usuario de acceso creado. Puede iniciar sesión con el email y el documento de identidad como contraseña.'));
     }
 
@@ -225,12 +300,13 @@ class PersonaController extends Controller
                 $omitidos++;
                 continue;
             }
-            User::create([
+            $user = User::create([
                 'name' => $persona->nombre ?? $persona->full_name ?? $persona->email_address,
                 'email' => $persona->email_address,
                 'password' => $persona->documento_identidad,
                 'regional_id' => $persona->regional_id,
             ]);
+            $user->assignRole('usuario');
             $creados++;
             $emailsExistentes[$persona->email_address] = true;
         }
@@ -261,12 +337,13 @@ class PersonaController extends Controller
             if (isset($emailsExistentes[$persona->email_address])) {
                 continue;
             }
-            User::create([
+            $user = User::create([
                 'name' => $persona->nombre ?? $persona->full_name ?? $persona->email_address,
                 'email' => $persona->email_address,
                 'password' => $persona->documento_identidad,
                 'regional_id' => $persona->regional_id,
             ]);
+            $user->assignRole('usuario');
             $creados++;
             $emailsExistentes[$persona->email_address] = true;
         }

@@ -15,6 +15,11 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class AllUsersImportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:personas.import');
+    }
+
     public function show(): View
     {
         return view('activos.import-all-users');

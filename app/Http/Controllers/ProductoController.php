@@ -9,6 +9,14 @@ use Illuminate\Http\RedirectResponse;
 
 class ProductoController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:productos.view')->only(['index', 'show']);
+        $this->middleware('permission:productos.create')->only(['create', 'store']);
+        $this->middleware('permission:productos.update')->only(['edit', 'update']);
+        $this->middleware('permission:productos.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
         $productos = Producto::query()

@@ -5,6 +5,8 @@ use App\Http\Controllers\AllUsersImportController;
 use App\Http\Controllers\CrvReporteImportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TomaParqueImportController;
+use App\Http\Controllers\TvmAssetController;
+use App\Http\Controllers\TvmImportController;
 use App\Http\Controllers\BodegaController;
 use App\Http\Controllers\CpuController;
 use App\Http\Controllers\DepartmentController;
@@ -13,8 +15,10 @@ use App\Http\Controllers\MonitorController;
 use App\Http\Controllers\PersonaController;
 use App\Http\Controllers\ParqueExportController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RegionalController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\TecladoController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -27,7 +31,7 @@ Route::get('/', function () {
         : redirect()->route('login');
 })->name('home');
 
-Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified', 'permission:dashboard.view'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get(PROFILE_PATH, [ProfileController::class, 'edit'])->name('profile.edit');
@@ -38,6 +42,7 @@ Route::middleware('auth')->group(function () {
     Route::get('personas/import', [AllUsersImportController::class, 'show'])->name('personas.import');
     Route::post('personas/import', [AllUsersImportController::class, 'store'])->name('personas.import.store');
     Route::post('personas/{persona}/crear-usuario', [PersonaController::class, 'crearUsuario'])->name('personas.crear-usuario');
+    Route::put('personas/{persona}/roles', [PersonaController::class, 'updateRoles'])->name('personas.roles.update');
     Route::post('personas/crear-usuarios-masivo', [PersonaController::class, 'crearUsuariosMasivo'])->name('personas.crear-usuarios-masivo');
     Route::post('personas/crear-usuarios-todos', [PersonaController::class, 'crearUsuariosTodos'])->name('personas.crear-usuarios-todos');
     Route::resource('personas', PersonaController::class);
@@ -52,8 +57,14 @@ Route::middleware('auth')->group(function () {
     Route::get('parque/export', ParqueExportController::class)->name('parque.export');
     Route::get('crv/import', [CrvReporteImportController::class, 'show'])->name('crv.import');
     Route::post('crv/import', [CrvReporteImportController::class, 'store'])->name('crv.import.store');
+    Route::get('tvm/import', [TvmImportController::class, 'show'])->name('tvm.import');
+    Route::post('tvm/import', [TvmImportController::class, 'store'])->name('tvm.import.store');
+    Route::post('tvm-assets/{tvm_asset}/resolve', [TvmAssetController::class, 'resolve'])->name('tvm-assets.resolve');
     Route::resource('productos', ProductoController::class)->parameters(['productos' => 'producto']);
     Route::resource('activos-crv', ActivoCrvController::class)->parameters(['activos-crv' => 'activoCrv']);
+
+    Route::resource('roles', RoleController::class);
+    Route::resource('permissions', PermissionController::class)->only(['index', 'create', 'store']);
 });
 
 require __DIR__.'/auth.php';

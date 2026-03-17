@@ -21,16 +21,42 @@
                     <div><dt class="text-sm font-medium text-gray-500">{{ __('Oficina') }}</dt><dd class="mt-0.5 text-gray-900">{{ $persona->office?->nombre ?? '—' }}</dd></div>
                     <div><dt class="text-sm font-medium text-gray-500">{{ __('Cargo') }}</dt><dd class="mt-0.5 text-gray-900">{{ $persona->title?->nombre ?? '—' }}</dd></div>
                     @if($persona->email_address)<div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">{{ __('Email') }}</dt><dd class="mt-0.5 text-gray-900">{{ $persona->email_address }}</dd></div>@endif
-                    <div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">{{ __('Usuario de acceso') }}</dt><dd class="mt-0.5 text-gray-900">@if($tieneUsuario)<span class="text-green-700">{{ __('Sí') }}</span>@elseif($puedeCrearUsuario)<form action="{{ route('personas.crear-usuario', $persona) }}" method="POST" class="inline">@csrf<button type="submit" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{{ __('Crear usuario') }}</button></form><span class="ml-2 text-gray-500 text-sm">{{ __('Contraseña inicial: documento de identidad') }}</span>@else<span class="text-gray-400">—</span> {{ __('Indique email en Editar para crear usuario.') }}@endif</dd></div>
+                    <div class="sm:col-span-2"><dt class="text-sm font-medium text-gray-500">{{ __('Usuario de acceso') }}</dt><dd class="mt-0.5 text-gray-900">@if($tieneUsuario)<span class="text-green-700">{{ __('Sí') }}</span>@elseif($puedeCrearUsuario)@can('personas.crear-usuario')<form action="{{ route('personas.crear-usuario', $persona) }}" method="POST" class="inline">@csrf<button type="submit" class="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{{ __('Crear usuario') }}</button></form><span class="ml-2 text-gray-500 text-sm">{{ __('Contraseña inicial: documento de identidad') }}</span>@else<span class="text-amber-600">{{ __('Pendiente') }}</span>@endcan@else<span class="text-gray-400">—</span> {{ __('Indique email en Editar para crear usuario.') }}@endif</dd></div>
                 </dl>
                 <div class="mt-6 flex flex-wrap gap-3">
+                    @can('personas.update')
                     <a href="{{ route('personas.edit', $persona) }}" class="px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700">{{ __('Editar') }}</a>
+                    @endcan
+                    @can('personas.crear-usuario')
                     @if($puedeCrearUsuario)
                         <form action="{{ route('personas.crear-usuario', $persona) }}" method="POST" class="inline">@csrf<button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">{{ __('Crear usuario de acceso') }}</button></form>
                     @endif
+                    @endcan
                     <a href="{{ route('activos-crv.index', ['persona_id' => $persona->id]) }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">{{ __('Ver activos CRV') }}</a>
                     <a href="{{ route('personas.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">{{ __('Volver') }}</a>
                 </div>
+
+                @can('roles.update')
+                @if($userLink && $roles->isNotEmpty())
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <h3 class="text-sm font-semibold text-gray-800 mb-2">{{ __('Roles y permisos') }}</h3>
+                        <p class="text-sm text-gray-500 mb-3">{{ __('Asignar roles al usuario de acceso de esta persona. Los permisos se derivan del rol.') }}</p>
+                        <form action="{{ route('personas.roles.update', $persona) }}" method="POST" class="space-y-3">
+                            @csrf
+                            @method('PUT')
+                            <div class="flex flex-wrap gap-4">
+                                @foreach($roles as $role)
+                                    <label class="inline-flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="roles[]" value="{{ $role->name }}" @checked($userLink->hasRole($role->name)) class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500">
+                                        <span class="text-sm text-gray-700">{{ $role->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium">{{ __('Guardar roles') }}</button>
+                        </form>
+                    </div>
+                @endif
+                @endcan
 
                 @if($persona->activosCrv->isNotEmpty())
                     <h3 class="mt-8 text-sm font-medium text-gray-700">{{ __('Activos asignados') }} ({{ $persona->activosCrv->count() }})</h3>

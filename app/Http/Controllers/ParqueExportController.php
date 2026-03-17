@@ -11,6 +11,11 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class ParqueExportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:parque.export');
+    }
+
     public function __invoke(): BinaryFileResponse
     {
         $filename = 'Toma_Parque_' . date('Y') . '.xlsx';

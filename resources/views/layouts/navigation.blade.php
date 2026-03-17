@@ -1,3 +1,4 @@
+@php $userRoles = Auth::user()->getRoleNames(); @endphp
 <nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,24 +19,41 @@
                     <x-nav-link :href="route('personas.index')" :active="request()->routeIs('personas.*')">
                         {{ __('Personas') }}
                     </x-nav-link>
+                    @can('productos.view')
                     <x-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
                         {{ __('Productos') }}
                     </x-nav-link>
+                    @endcan
                     <x-nav-link :href="route('activos-crv.index')" :active="request()->routeIs('activos-crv.*')">
                         {{ __('Activos CRV') }}
                     </x-nav-link>
                     <x-nav-link :href="route('cpus.index')" :active="request()->routeIs('cpus.*')">
                         {{ __('CPUs') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('personas.import')" :active="request()->routeIs('personas.import*')">
-                        {{ __('Import All Users') }}
+                    <x-nav-link :href="route('monitores.index')" :active="request()->routeIs('monitores.*')">
+                        {{ __('Monitores') }}
                     </x-nav-link>
-                    <x-nav-link :href="route('crv.import')" :active="request()->routeIs('crv.import*')">
-                        {{ __('Import CRV') }}
-                    </x-nav-link>
-                    <x-nav-link :href="route('parque.export')" :active="request()->routeIs('parque.export')">
-                        {{ __('Export Parque') }}
-                    </x-nav-link>
+                    @canany(['personas.import', 'activos_crv.import', 'tvm.import', 'parque.export', 'roles.view'])
+                    <div class="inline-flex items-center h-full -mb-px">
+                        <x-dropdown align="left" width="w-56">
+                            <x-slot name="trigger">
+                                <button type="button" class="inline-flex items-center px-1 pt-1 border-b-2 border-transparent text-sm font-medium leading-5 text-gray-500 hover:text-gray-700 hover:border-gray-300 focus:outline-none transition duration-150 ease-in-out">
+                                    {{ __('Herramientas') }}
+                                    <svg class="ms-0.5 h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </x-slot>
+                            <x-slot name="content">
+                                @can('personas.import')<x-dropdown-link :href="route('personas.import')">{{ __('Import All Users') }}</x-dropdown-link>@endcan
+                                @can('activos_crv.import')<x-dropdown-link :href="route('crv.import')">{{ __('Import CRV') }}</x-dropdown-link>@endcan
+                                @can('tvm.import')<x-dropdown-link :href="route('tvm.import')">{{ __('Import TVM') }}</x-dropdown-link>@endcan
+                                @can('parque.export')<x-dropdown-link :href="route('parque.export')">{{ __('Export Parque') }}</x-dropdown-link>@endcan
+                                @can('roles.view')<x-dropdown-link :href="route('roles.index')">{{ __('Roles y permisos') }}</x-dropdown-link>@endcan
+                            </x-slot>
+                        </x-dropdown>
+                    </div>
+                    @endcanany
                 </div>
             </div>
 
@@ -44,8 +62,12 @@
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
                         <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div>{{ Auth::user()->name }}</div>
-
+                            <div class="text-left">
+                                <div class="font-medium text-gray-800">{{ Auth::user()->name }}</div>
+                                @if($userRoles->isNotEmpty())
+                                    <div class="text-xs font-normal text-gray-500 mt-0.5">{{ $userRoles->implode(', ') }}</div>
+                                @endif
+                            </div>
                             <div class="ms-1">
                                 <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
@@ -55,6 +77,13 @@
                     </x-slot>
 
                     <x-slot name="content">
+                        <div class="px-4 py-2 border-b border-gray-100">
+                            <div class="text-sm font-medium text-gray-800">{{ Auth::user()->name }}</div>
+                            <div class="text-xs text-gray-500">{{ Auth::user()->email }}</div>
+                            @if($userRoles->isNotEmpty())
+                                <div class="text-xs text-gray-500 mt-1">{{ __('Roles') }}: {{ $userRoles->implode(', ') }}</div>
+                            @endif
+                        </div>
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Profile') }}
                         </x-dropdown-link>
@@ -94,24 +123,32 @@
             <x-responsive-nav-link :href="route('personas.index')" :active="request()->routeIs('personas.*')">
                 {{ __('Personas') }}
             </x-responsive-nav-link>
+            @can('productos.view')
             <x-responsive-nav-link :href="route('productos.index')" :active="request()->routeIs('productos.*')">
                 {{ __('Productos') }}
             </x-responsive-nav-link>
+            @endcan
             <x-responsive-nav-link :href="route('activos-crv.index')" :active="request()->routeIs('activos-crv.*')">
                 {{ __('Activos CRV') }}
             </x-responsive-nav-link>
             <x-responsive-nav-link :href="route('cpus.index')" :active="request()->routeIs('cpus.*')">
                 {{ __('CPUs') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('personas.import')" :active="request()->routeIs('personas.import*')">
-                {{ __('Import All Users') }}
+            <x-responsive-nav-link :href="route('monitores.index')" :active="request()->routeIs('monitores.*')">
+                {{ __('Monitores') }}
             </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('crv.import')" :active="request()->routeIs('crv.import*')">
-                {{ __('Import CRV') }}
-            </x-responsive-nav-link>
-            <x-responsive-nav-link :href="route('parque.export')" :active="request()->routeIs('parque.export')">
-                {{ __('Export Parque') }}
-            </x-responsive-nav-link>
+            @canany(['personas.import', 'activos_crv.import', 'tvm.import', 'parque.export', 'roles.view'])
+            <div class="pt-2 pb-1">
+                <div class="px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">{{ __('Herramientas') }}</div>
+                <div class="mt-1 space-y-1">
+                    @can('personas.import')<x-responsive-nav-link :href="route('personas.import')" :active="request()->routeIs('personas.import*')">{{ __('Import All Users') }}</x-responsive-nav-link>@endcan
+                    @can('activos_crv.import')<x-responsive-nav-link :href="route('crv.import')" :active="request()->routeIs('crv.import*')">{{ __('Import CRV') }}</x-responsive-nav-link>@endcan
+                    @can('tvm.import')<x-responsive-nav-link :href="route('tvm.import')" :active="request()->routeIs('tvm.import*')">{{ __('Import TVM') }}</x-responsive-nav-link>@endcan
+                    @can('parque.export')<x-responsive-nav-link :href="route('parque.export')" :active="request()->routeIs('parque.export')">{{ __('Export Parque') }}</x-responsive-nav-link>@endcan
+                    @can('roles.view')<x-responsive-nav-link :href="route('roles.index')" :active="request()->routeIs('roles.*') || request()->routeIs('permissions.*')">{{ __('Roles y permisos') }}</x-responsive-nav-link>@endcan
+                </div>
+            </div>
+            @endcanany
         </div>
 
         <!-- Responsive Settings Options -->
@@ -119,6 +156,9 @@
             <div class="px-4">
                 <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
                 <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+                @if($userRoles->isNotEmpty())
+                    <div class="text-xs text-gray-500 mt-1">{{ __('Roles') }}: {{ $userRoles->implode(', ') }}</div>
+                @endif
             </div>
 
             <div class="mt-3 space-y-1">

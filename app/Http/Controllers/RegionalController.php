@@ -9,6 +9,14 @@ use Illuminate\Http\RedirectResponse;
 
 class RegionalController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:regionales.view')->only(['index', 'show']);
+        $this->middleware('permission:regionales.create')->only(['create', 'store']);
+        $this->middleware('permission:regionales.update')->only(['edit', 'update']);
+        $this->middleware('permission:regionales.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
         $regionales = Regional::query()

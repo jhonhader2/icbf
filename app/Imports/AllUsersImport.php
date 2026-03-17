@@ -91,12 +91,13 @@ class AllUsersImport implements ToModel, WithHeadingRow, WithValidation
         if (User::where('email', $email)->exists()) {
             return;
         }
-        User::create([
+        $user = User::create([
             'name' => $persona->nombre ?? $persona->full_name ?? $email,
             'email' => $email,
             'password' => $persona->documento_identidad,
             'regional_id' => $persona->regional_id,
         ]);
+        $user->assignRole('usuario');
     }
 
     public function rules(): array

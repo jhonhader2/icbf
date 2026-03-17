@@ -86,6 +86,14 @@ class TomaParqueDataEquiposSheetImport implements ToCollection, WithStartRow
 
     private function actualizarCpu(array $row, string $placa): void
     {
+        // Filtrar filas que no correspondan a equipos de cómputo (CPU/portátil).
+        // Columna J (índice 9) = TIPO EQUIPO en el formato Toma Parque.
+        $tipo = mb_strtolower($this->valor($row, 9));
+        if ($tipo === '' || (! str_contains($tipo, 'cpu') && ! str_contains($tipo, 'portatil'))) {
+            // No es un equipo de cómputo gestionado en la tabla cpus: no crear/actualizar registro.
+            return;
+        }
+
         $data = ['placa' => $placa];
 
         foreach (self::MAP as $colIndex => $attribute) {

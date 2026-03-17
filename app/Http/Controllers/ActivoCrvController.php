@@ -13,8 +13,38 @@ use Illuminate\Http\RedirectResponse;
 
 class ActivoCrvController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:activos_crv.view')->only(['index', 'show']);
+        $this->middleware('permission:activos_crv.create')->only(['create', 'store']);
+        $this->middleware('permission:activos_crv.update')->only(['edit', 'update']);
+        $this->middleware('permission:activos_crv.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
+        $user = $request->user();
+        $isAdmin = $user && $user->can('activos_crv.update');
+
+        if (! $isAdmin) {
+            $persona = $this->currentPersona();
+            if (! $persona) {
+                abort(404);
+            }
+            $activosCrv = ActivoCrv::query()
+                ->with(['persona', 'producto', 'bodega'])
+                ->where('persona_id', $persona->id)
+                ->when($request->filled('q'), fn ($q) => $q->where('placa', 'like', '%' . $request->q . '%')
+                    ->orWhere('serie', 'like', '%' . $request->q . '%')
+                    ->orWhereHas('producto', fn ($q2) => $q2->where('codigo', 'like', '%' . $request->q . '%')
+                        ->orWhere('nombre', 'like', '%' . $request->q . '%')))
+                ->orderBy('placa')
+                ->paginate(15)
+                ->withQueryString();
+
+            return view('activos.activos-crv.index', compact('activosCrv'));
+        }
+
         $rid = $this->userRegionalId();
         $activosCrv = ActivoCrv::query()
             ->with(['persona', 'producto', 'bodega'])
@@ -67,9 +97,19 @@ class ActivoCrvController extends Controller
 
     public function show(ActivoCrv $activoCrv): View
     {
-        $rid = $this->userRegionalId();
-        if ($rid !== null && (int) $activoCrv->regional_id !== $rid) {
-            abort(404);
+        $user = request()->user();
+        $isAdmin = $user && $user->can('activos_crv.update');
+
+        if (! $isAdmin) {
+            $persona = $this->currentPersona();
+            if (! $persona || (int) $activoCrv->persona_id !== $persona->id) {
+                abort(404);
+            }
+        } else {
+            $rid = $this->userRegionalId();
+            if ($rid !== null && (int) $activoCrv->regional_id !== $rid) {
+                abort(404);
+            }
         }
         $activoCrv->load(['persona', 'producto', 'regional', 'bodega', 'cpu.monitor', 'cpu.teclado', 'cpu.mouse']);
         return view('activos.activos-crv.show', compact('activoCrv'));

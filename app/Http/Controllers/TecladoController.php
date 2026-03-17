@@ -10,6 +10,14 @@ use Illuminate\Http\RedirectResponse;
 
 class TecladoController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:teclados.view')->only(['index', 'show']);
+        $this->middleware('permission:teclados.create')->only(['create', 'store']);
+        $this->middleware('permission:teclados.update')->only(['edit', 'update']);
+        $this->middleware('permission:teclados.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
         $teclados = Teclado::query()

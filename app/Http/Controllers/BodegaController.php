@@ -9,6 +9,14 @@ use Illuminate\Http\RedirectResponse;
 
 class BodegaController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:bodegas.view')->only(['index', 'show']);
+        $this->middleware('permission:bodegas.create')->only(['create', 'store']);
+        $this->middleware('permission:bodegas.update')->only(['edit', 'update']);
+        $this->middleware('permission:bodegas.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
         $bodegas = Bodega::query()

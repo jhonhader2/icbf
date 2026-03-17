@@ -10,6 +10,14 @@ use Illuminate\Http\RedirectResponse;
 
 class MouseController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:mice.view')->only(['index', 'show']);
+        $this->middleware('permission:mice.create')->only(['create', 'store']);
+        $this->middleware('permission:mice.update')->only(['edit', 'update']);
+        $this->middleware('permission:mice.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
         $mice = Mouse::query()

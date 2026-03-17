@@ -11,6 +11,19 @@ class DashboardController extends Controller
 {
     public function __invoke(): View
     {
+        $user = request()->user();
+        $isAdmin = $user && $user->can('personas.update'); // Ver KPIs globales solo si puede gestionar personas
+
+        if (! $isAdmin) {
+            return $this->dashboardUsuario();
+        }
+
+        return $this->dashboardAdmin();
+    }
+
+    /** Dashboard para administradores: datos por regional. */
+    private function dashboardAdmin(): View
+    {
         $rid = $this->userRegionalId();
 
         $personasQuery = Persona::query()->when($rid !== null, fn ($q) => $q->where('personas.regional_id', $rid));
@@ -38,8 +51,60 @@ class DashboardController extends Controller
             ->orderByDesc('total')
             ->get();
 
-        $cpusQuery = Cpu::query()->when($rid !== null, fn ($q) => $q->whereHas('activoCrv', fn ($q2) => $q2->where('regional_id', $rid)));
+        $cpusQuery = Cpu::query()->when(
+            $rid !== null,
+            fn ($q) => $q->whereHas('activoCrv', fn ($q2) => $q2->where('regional_id', $rid))
+        );
+
+        return $this->vistaDashboard(true, [
+            'totalPersonas' => $totalPersonas,
+            'personasActivas' => $personasActivas,
+            'personasInactivas' => $personasInactivas,
+            'personasSinEstado' => $personasSinEstado,
+            'personasPorDepartamento' => $personasPorDepartamento,
+            'personasPorRegional' => $personasPorRegional,
+        ], $cpusQuery);
+    }
+
+    /** Dashboard para usuario: solo sus activos (persona actual, sus CPUs). */
+    private function dashboardUsuario(): View
+    {
+        $persona = $this->currentPersona();
+        if (! $persona) {
+            abort(404, __('No tiene una persona asociada; contacte al administrador.'));
+        }
+
+        $cpusQuery = Cpu::query()->where('cpus.persona_id', $persona->id);
+
+        return $this->vistaDashboard(false, [
+            'totalPersonas' => 0,
+            'personasActivas' => 0,
+            'personasInactivas' => 0,
+            'personasSinEstado' => 0,
+            'personasPorDepartamento' => collect(),
+            'personasPorRegional' => collect(),
+        ], $cpusQuery);
+    }
+
+    /** @param \Illuminate\Database\Eloquent\Builder $cpusQuery */
+    private function vistaDashboard(bool $isAdmin, array $personasData, $cpusQuery): View
+    {
         $totalCpus = $cpusQuery->count();
+
+        $cpusPorTipo = (clone $cpusQuery)
+            ->leftJoin('activos_crv', 'activos_crv.id', '=', 'cpus.activo_crv_id')
+            ->leftJoin('productos', 'productos.id', '=', 'activos_crv.producto_id')
+            ->selectRaw("COALESCE(NULLIF(TRIM(cpus.tipo_equipo), ''), productos.nombre) AS tipo")
+            ->selectRaw('COUNT(*) AS total')
+            ->groupByRaw("COALESCE(NULLIF(TRIM(cpus.tipo_equipo), ''), productos.nombre)")
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($r) => [
+                'tipo' => $r->tipo ?: __('Sin tipo'),
+                'total' => (int) $r->total,
+            ])
+            ->all();
+
         $limite5Anios = Carbon::now()->subYears(5)->startOfDay();
         $cpusMasDe5Anios = (clone $cpusQuery)->whereHas('activoCrv', fn ($q) => $q->whereNotNull('fecha_adquisicion')->where('fecha_adquisicion', '<=', $limite5Anios))->count();
         $cpusMenosOIgual5 = (clone $cpusQuery)->whereHas('activoCrv', fn ($q) => $q->whereNotNull('fecha_adquisicion')->where('fecha_adquisicion', '>', $limite5Anios))->count();
@@ -48,13 +113,15 @@ class DashboardController extends Controller
             ->count();
 
         return view('dashboard', [
-            'totalPersonas' => $totalPersonas,
-            'personasActivas' => $personasActivas,
-            'personasInactivas' => $personasInactivas,
-            'personasSinEstado' => $personasSinEstado,
-            'personasPorDepartamento' => $personasPorDepartamento,
-            'personasPorRegional' => $personasPorRegional,
+            'isAdmin' => $isAdmin,
+            'totalPersonas' => $personasData['totalPersonas'],
+            'personasActivas' => $personasData['personasActivas'],
+            'personasInactivas' => $personasData['personasInactivas'],
+            'personasSinEstado' => $personasData['personasSinEstado'],
+            'personasPorDepartamento' => $personasData['personasPorDepartamento'],
+            'personasPorRegional' => $personasData['personasPorRegional'],
             'totalCpus' => $totalCpus,
+            'cpusPorTipo' => $cpusPorTipo,
             'cpusMasDe5Anios' => $cpusMasDe5Anios,
             'cpusMenosOIgual5' => $cpusMenosOIgual5,
             'cpusSinFecha' => $cpusSinFecha,

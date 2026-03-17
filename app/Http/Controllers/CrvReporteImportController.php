@@ -14,6 +14,11 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class CrvReporteImportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:activos_crv.import');
+    }
+
     public function show(): View
     {
         return view('activos.import-crv');

@@ -15,6 +15,11 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class TomaParqueImportController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:cpus.import');
+    }
+
     public function show(): View
     {
         return view('activos.import-toma-parque');

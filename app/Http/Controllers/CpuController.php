@@ -10,12 +10,62 @@ use Illuminate\Http\RedirectResponse;
 
 class CpuController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:cpus.view')->only(['index', 'show']);
+        $this->middleware('permission:cpus.create')->only(['create', 'store']);
+        $this->middleware('permission:cpus.update')->only(['edit', 'update']);
+        $this->middleware('permission:cpus.delete')->only(['destroy']);
+    }
+
     public function index(Request $request): View
     {
+        $user = $request->user();
+        $tipoFiltro = $request->string('tipo')->trim();
+        $isAdmin = $user && $user->can('cpus.update');
+
+        if (! $isAdmin) {
+            $persona = $this->currentPersona();
+            if (! $persona) {
+                abort(404);
+            }
+            $baseQuery = Cpu::query()->where('cpus.persona_id', $persona->id);
+            $cpusPorTipo = $this->cpusPorTipo($baseQuery);
+            $cpus = (clone $baseQuery)
+                ->with(['persona', 'activoCrv.producto'])
+                ->when($tipoFiltro->isNotEmpty(), function ($q) use ($tipoFiltro) {
+                    $q->where(function ($q2) use ($tipoFiltro) {
+                        $q2->whereRaw("COALESCE(NULLIF(TRIM(cpus.tipo_equipo), ''), '') = ?", [$tipoFiltro])
+                            ->orWhereHas('activoCrv.producto', fn ($q3) => $q3->where('nombre', $tipoFiltro));
+                    });
+                })
+                ->when($request->filled('q'), function ($q) use ($request) {
+                    $term = '%' . $request->q . '%';
+                    $q->where('placa', 'like', $term)
+                        ->orWhere('nombre_maquina', 'like', $term)
+                        ->orWhereHas('activoCrv', fn ($q2) => $q2->where('serie', 'like', $term));
+                })
+                ->orderBy('nombre_maquina')
+                ->paginate(15)
+                ->withQueryString();
+
+            return view('activos.cpus.index', compact('cpus', 'cpusPorTipo'));
+        }
+
         $rid = $this->userRegionalId();
-        $cpus = Cpu::query()
-            ->with(['persona', 'activoCrv'])
-            ->when($rid !== null, fn ($q) => $q->whereHas('activoCrv', fn ($q2) => $q2->where('regional_id', $rid)))
+        $baseQuery = Cpu::query()
+            ->when($rid !== null, fn ($q) => $q->whereHas('activoCrv', fn ($q2) => $q2->where('regional_id', $rid)));
+
+        $cpusPorTipo = $this->cpusPorTipo($baseQuery);
+
+        $cpus = (clone $baseQuery)
+            ->with(['persona', 'activoCrv.producto'])
+            ->when($tipoFiltro->isNotEmpty(), function ($q) use ($tipoFiltro) {
+                $q->where(function ($q2) use ($tipoFiltro) {
+                    $q2->whereRaw("COALESCE(NULLIF(TRIM(cpus.tipo_equipo), ''), '') = ?", [$tipoFiltro])
+                        ->orWhereHas('activoCrv.producto', fn ($q3) => $q3->where('nombre', $tipoFiltro));
+                });
+            })
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = '%' . $request->q . '%';
                 $q->where('placa', 'like', $term)
@@ -25,7 +75,25 @@ class CpuController extends Controller
             ->orderBy('nombre_maquina')
             ->paginate(15)
             ->withQueryString();
-        return view('activos.cpus.index', compact('cpus'));
+
+        return view('activos.cpus.index', compact('cpus', 'cpusPorTipo'));
+    }
+
+    /** @return array<int, array{tipo: string, total: int}> */
+    private function cpusPorTipo(\Illuminate\Database\Eloquent\Builder $baseQuery): array
+    {
+        $query = (clone $baseQuery)
+            ->leftJoin('activos_crv', 'activos_crv.id', '=', 'cpus.activo_crv_id')
+            ->leftJoin('productos', 'productos.id', '=', 'activos_crv.producto_id')
+            ->selectRaw("COALESCE(NULLIF(TRIM(cpus.tipo_equipo), ''), productos.nombre) AS tipo")
+            ->selectRaw('COUNT(*) AS total')
+            ->groupByRaw("COALESCE(NULLIF(TRIM(cpus.tipo_equipo), ''), productos.nombre)")
+            ->orderByDesc('total');
+
+        return $query->get()->map(fn ($r) => [
+            'tipo' => $r->tipo ?: __('Sin tipo'),
+            'total' => (int) $r->total,
+        ])->all();
     }
 
     public function create(): View
@@ -53,11 +121,21 @@ class CpuController extends Controller
 
     public function show(Cpu $cpu): View
     {
-        $rid = $this->userRegionalId();
-        if ($rid !== null && (int) ($cpu->activoCrv?->regional_id) !== $rid) {
-            abort(404);
+        $user = request()->user();
+        $isAdmin = $user && $user->can('cpus.update');
+
+        if (! $isAdmin) {
+            $persona = $this->currentPersona();
+            if (! $persona || (int) $cpu->persona_id !== $persona->id) {
+                abort(404);
+            }
+        } else {
+            $rid = $this->userRegionalId();
+            if ($rid !== null && (int) ($cpu->activoCrv?->regional_id) !== $rid) {
+                abort(404);
+            }
         }
-        $cpu->load(['persona', 'activoCrv.producto', 'activoCrv.regional', 'monitor', 'teclado', 'mouse']);
+        $cpu->load(['persona', 'activoCrv.producto', 'activoCrv.regional', 'monitor', 'teclado', 'mouse', 'tvmAssets' => fn ($q) => $q->orderByDesc('last_seen')]);
         return view('activos.cpus.show', compact('cpu'));
     }
 

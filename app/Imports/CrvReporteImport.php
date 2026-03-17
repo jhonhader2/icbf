@@ -19,13 +19,13 @@ use PhpOffice\PhpSpreadsheet\Shared\Date;
  * Importa 20260310_crvReporte.xls. Encabezados fila 13. Estructura jerárquica + filas de activo.
  * Jerarquía: código en D (3), nombre en F (5): REGIONAL / BODEGA / Tercero (persona). Filas "Subtotal" se ignoran.
  * Fila de activo: Placa en D (3), Producto en H (7). Primer producto suele estar en fila Excel 19 (índice 5).
- * Si el código de producto es 203002000005 (CPU), se registra también en la tabla cpus.
+ * Si el código de producto es uno de los considerados CPU (203002000005, 203002000002, etc.), se registra también en la tabla cpus.
  * Si el código es 203002000004 (Monitor), se registra también en la tabla monitores.
  */
 class CrvReporteImport implements ToCollection, WithStartRow
 {
-    /** Código de producto que identifica CPU en el reporte CRV. */
-    public const CODIGO_PRODUCTO_CPU = '203002000005';
+    /** Códigos de producto que identifican CPU/PC en el reporte CRV. */
+    public const CODIGOS_PRODUCTO_CPU = ['203002000005', '203002000002', '203002000053'];
 
     /** Código de producto que identifica Monitor en el reporte CRV. */
     public const CODIGO_PRODUCTO_MONITOR = '203002000004';
@@ -294,7 +294,7 @@ class CrvReporteImport implements ToCollection, WithStartRow
             ]
         );
 
-        if ($productoVal['codigo'] === self::CODIGO_PRODUCTO_CPU) {
+        if (in_array($productoVal['codigo'], self::CODIGOS_PRODUCTO_CPU, true)) {
             $this->createOrUpdateCpu($placa, $personaId, $activo->id);
         }
         if ($productoVal['codigo'] === self::CODIGO_PRODUCTO_MONITOR) {
@@ -303,7 +303,7 @@ class CrvReporteImport implements ToCollection, WithStartRow
     }
 
     /**
-     * Crea o actualiza registro en cpus cuando el activo importado es CPU (código 203002000005).
+     * Crea o actualiza registro en cpus cuando el activo importado es CPU (código en CODIGOS_PRODUCTO_CPU).
      * Vincula por activo_crv_id; placa y persona se mantienen para búsquedas/listados.
      */
     private function createOrUpdateCpu(string $placa, ?int $personaId, int $activoCrvId): void

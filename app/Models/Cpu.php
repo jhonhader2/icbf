@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Cpu extends Model
@@ -73,6 +74,11 @@ class Cpu extends Model
     public function mouse(): HasOne
     {
         return $this->hasOne(Mouse::class, 'cpu_id');
+    }
+
+    public function tvmAssets(): HasMany
+    {
+        return $this->hasMany(TvmAsset::class, 'cpu_id');
     }
 
     // ——— Accessors: datos que viven en activos_crv o producto ———
