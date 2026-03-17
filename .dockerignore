@@ -1,0 +1,49 @@
+# Git y control de versiones
+.git
+.gitignore
+.gitattributes
+
+# Dependencias (se instalan en el build)
+node_modules
+vendor
+
+# Entorno y secretos (en producción se inyectan)
+.env
+.env.*
+!.env.example
+
+# IDE y OS
+.idea
+.vscode
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Tests y documentación
+tests
+phpunit.xml
+.phpunit.result.cache
+*.md
+docs
+
+# Logs y cache local (no copiar al build)
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+!storage/logs/.gitignore
+!storage/framework/cache/.gitignore
+!storage/framework/sessions/.gitignore
+!storage/framework/views/.gitignore
+
+# Docker (evitar contexto innecesario)
+Dockerfile*
+docker-compose*
+.docker
+
+# Build front (si se compila en CI, no en imagen)
+public/hot
+public/storage
+npm-debug.log
+yarn-error.log
