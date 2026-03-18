@@ -8,7 +8,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: icbf-app:prod
-    container_name: activos-app
+    container_name: icbf-app
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
@@ -24,7 +24,7 @@ services:
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: activos-nginx
+    container_name: icbf-nginx
     restart: unless-stopped
     ports:
       - "${APP_PORT:-80}:80"
@@ -39,12 +39,12 @@ services:
       context: .
       dockerfile: Dockerfile
     image: icbf-app:prod
-    container_name: activos-queue
+    container_name: icbf-queue
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html
-    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120", "--queue=${QUEUE_WORKER_QUEUES:-default,activos}"]
+    command: ["php", "artisan", "queue:work", "--sleep=1", "--tries=3", "--timeout=120", "--queue=${QUEUE_WORKER_QUEUES:-default,icbf}"]
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
@@ -59,7 +59,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: icbf-app:prod
-    container_name: activos-scheduler
+    container_name: icbf-scheduler
     restart: unless-stopped
     working_dir: /var/www/html
     volumes:
@@ -76,14 +76,14 @@ services:
 
   mysql:
     image: mysql:8.4
-    container_name: activos-mysql
+    container_name: icbf-mysql
     restart: unless-stopped
     environment:
       # MySQL 8 exige contraseña de root no vacía; si faltan, el contenedor queda unhealthy.
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-icbf_root_change_me}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-activos}
-      MYSQL_USER: ${MYSQL_USER:-activos}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-activos}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-icbf}
+      MYSQL_USER: ${MYSQL_USER:-icbf}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-icbf}
       TZ: ${TZ:-UTC}
     volumes:
       - mysql_data:/var/lib/mysql
@@ -96,9 +96,12 @@ services:
 
   redis:
     image: redis:7.4-alpine
-    container_name: activos-redis
+    container_name: icbf-redis
     restart: unless-stopped
+    volumes:
+      - redis_data:/data
     # Sin ports en prod; solo red interna
 
 volumes:
   mysql_data:
+  redis_data:
