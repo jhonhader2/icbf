@@ -79,10 +79,11 @@ services:
     container_name: activos-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      # MySQL 8 exige contraseña de root no vacía; si faltan, el contenedor queda unhealthy.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-icbf_root_change_me}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-activos}
       MYSQL_USER: ${MYSQL_USER:-activos}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-activos}
       TZ: ${TZ:-UTC}
     volumes:
       - mysql_data:/var/lib/mysql
